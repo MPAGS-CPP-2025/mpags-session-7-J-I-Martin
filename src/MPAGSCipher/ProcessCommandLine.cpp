@@ -6,7 +6,8 @@
 
 bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
                         bool& helpRequested, bool& versionRequested,
-                        std::string& inputFile, std::string& outputFile)
+                        std::string& inputFile, std::string& outputFile,
+                        bool& encrypt, std::string& key)
 {
     // Status flag to indicate whether or not the parsing was successful
     bool processStatus{true};
@@ -49,6 +50,24 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
             } else {
                 // Got filename, so assign value and advance past it
                 outputFile = cmdLineArgs[i + 1];
+                ++i;
+            }
+        } else if (cmdLineArgs[i] == "--encrypt") {
+            // Handle mode of operation
+            encrypt = true;
+        } else if (cmdLineArgs[i] == "--decrypt") {
+            encrypt = false;
+        } else if (cmdLineArgs[i] == "--key") {
+            // Handle input file option
+            // Next element is key unless "--key" is the last argument
+            if (i == nCmdLineArgs - 1) {
+                std::cerr << "[error] --key required" << std::endl;
+                // Set the flag to indicate the error and terminate the loop
+                processStatus = false;
+                break;
+            } else {
+                // Got key, so assign value and advance past it
+                key = cmdLineArgs[i + 1];
                 ++i;
             }
         } else {

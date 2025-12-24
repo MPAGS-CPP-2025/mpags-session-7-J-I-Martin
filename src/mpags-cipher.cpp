@@ -1,8 +1,11 @@
 #include "ProcessCommandLine.hpp"
 #include "TransformChar.hpp"
+#include "runCaeserCipher.hpp"
 
 #include <cctype>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -16,10 +19,13 @@ int main(int argc, char* argv[])
     bool versionRequested{false};
     std::string inputFile{""};
     std::string outputFile{""};
+    bool encrypt{false};
+    std::string cipherkey;
 
     // Process command line arguments
-    const bool cmdLineStatus{processCommandLine(
-        cmdLineArgs, helpRequested, versionRequested, inputFile, outputFile)};
+    const bool cmdLineStatus{
+        processCommandLine(cmdLineArgs, helpRequested, versionRequested,
+                           inputFile, outputFile, encrypt, cipherkey)};
 
     // Any failure in the argument processing means we can't continue
     // Use a non-zero return value to indicate failure
@@ -40,6 +46,9 @@ int main(int argc, char* argv[])
             << "                   Stdin will be used if not supplied\n\n"
             << "  -o FILE          Write processed text to FILE\n"
             << "                   Stdout will be used if not supplied\n\n"
+            << " --encrypt         Operate in encryption mode \n\n"
+            << " --decrypt         Operate in decryption mode \n\n"
+            << " --key             The key to be used for encrption or decrpytion \n\n"
             << std::endl;
         // Help requires no further action, so return from main
         // with 0 used to indicate success
@@ -57,28 +66,51 @@ int main(int argc, char* argv[])
     // Initialise variables
     char inputChar{'x'};
     std::string inputText;
+    std::string inputTextRaw;
 
     // Read in user input from stdin/file
-    // Warn that input file option not yet implemented
-    if (!inputFile.empty()) {
-        std::cerr << "[warning] input from file ('" << inputFile
-                  << "') not implemented yet, using stdin\n";
+    if (inputFile.empty()) {
+        // process commandline input
+        std::cin >> inputTextRaw;
+        for (const char c : inputTextRaw) {
+            inputText += transformChar(c);
+        }
+    } else {
+        // process text file input
+        std::ifstream in_file{inputFile};
+        bool ok_to_read = in_file.good();
+
+        if (ok_to_read == false) {
+            std::cerr << "[error] failed to read'" << "'\n";
+            return 1;
+        } else {
+            in_file >> inputChar;
+            while (std::cin >> inputChar) {
+                inputText += transformChar(inputChar);
+            }
+        }
     }
+    // Convert key and apply the Caesar cipher
+    size_t key;
+    std::stringstream stream{cipherkey};
+    stream >> key;
+    inputText = runCaeserCipher(inputText, key, encrypt);
 
-    // loop over each character from user input
-    while (std::cin >> inputChar) {
-        inputText += transformChar(inputChar);
+    // Output section
+    if (outputFile.empty()) {
+        // output to commandline
+        std::cout << inputText << std::endl;
+    } else {
+        // output to file
+        std::ofstream out_file{outputFile};
+        bool ok_to_write = out_file.good();
+        if (ok_to_write == false) {
+            std::cerr << "[error] failed to write'" << "'\n";
+            return 1;
+        } else {
+            out_file << inputText;
+        }
     }
-
-    // Print out the transliterated text
-
-    // Warn that output file option not yet implemented
-    if (!outputFile.empty()) {
-        std::cerr << "[warning] output to file ('" << outputFile
-                  << "') not implemented yet, using stdout\n";
-    }
-
-    std::cout << inputText << std::endl;
 
     // No requirement to return from main, but we do so for clarity
     // and for consistency with other functions
